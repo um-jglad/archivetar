@@ -193,15 +193,19 @@ class GlobusTransfer:
             self.tc.operation_ls(target, path)
         except globus_sdk.TransferAPIError as err:
             print(err)
-            print(err.info.authorization_parameters.session_required_single_domain)
             if err.info.consent_required:
                 self.required_scopes.extend(err.info.consent_required.required_scopes)
                 raise ScopeOrSingleDomainError("adding missing consent")
-            if err.info.authorization_parameters:
+            authorization_parameters = err.info.authorization_parameters
+            if (
+                authorization_parameters
+                and authorization_parameters.session_required_single_domain
+            ):
                 self.session_required_single_domain = (
-                    err.info.authorization_parameters.session_required_single_domain
+                    authorization_parameters.session_required_single_domain
                 )
                 raise ScopeOrSingleDomainError("adding missing domain")
+            raise
 
     def ls_endpoint(self):
         """Just here for debug that globus is working."""

@@ -591,6 +591,11 @@ def validate_prefix(prefix, path=None):
 
 
 def main(argv):
+    if len(argv) > 1 and argv[1] == "auth":
+        from archivetar.auth import main as auth_main
+
+        return auth_main(argv[2:])
+
     args = parse_args(argv[1:])
     if args.quiet:
         logging.basicConfig(level=logging.WARNING)

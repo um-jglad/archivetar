@@ -67,7 +67,10 @@ def parse_args(args):
     """
     parser = argparse.ArgumentParser(
         description="Prepare a directory for archive",
-        epilog="Brock Palen brockp@umich.edu",
+        epilog=(
+            "For Globus authentication before a batch job, run 'archivetar auth --help'.\n\n"
+            "Brock Palen brockp@umich.edu"
+        ),
     )
     parser.add_argument(
         "--dryrun",

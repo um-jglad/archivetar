@@ -41,6 +41,13 @@ def main():
         subprocess.run([".archivetar", "-h"])
         sys.exit(0)
 
+    # Globus's native-app flow prompts for an authorization code, so it must
+    # stay in the user's interactive shell rather than being offloaded to Slurm.
+    if len(sys.argv) > 1 and sys.argv[1] == "auth":
+        print("\033[34m==>\033[32m Running Globus authentication locally\033[0m")
+        result = subprocess.run([".archivetar"] + sys.argv[1:])
+        sys.exit(result.returncode)
+
     # Handle the case where no arguments are provided (just "archivetar")
     if len(sys.argv) == 1:
         print("\033[34m==>\033[32m Running archivetar with no arguments\033[0m")

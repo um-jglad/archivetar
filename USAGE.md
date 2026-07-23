@@ -27,6 +27,19 @@ archivetar --prefix myarchive --size 20G --tar-size 10G
 
 ### Upload via Globus to Archive
 
+Before submitting an archive job that will use Globus, authenticate from an
+interactive cluster shell. This creates the refresh token used by later batch
+jobs and verifies access to the selected collections. Specify a guest
+collection with `--destination` when needed:
+
+```
+archivetar auth --destination <guest collection UUID>
+```
+
+Use `--source`, `--destination-dir`, or `--destination-path` to validate the
+same source and destination path that the archive job will use. Tokens are
+stored in `~/.globus/tokens.json`.
+
 ```
 archivetar --prefix project1 --source <globus UUID> 
  --destination <globus UUID> --destination-path <path on archive>
