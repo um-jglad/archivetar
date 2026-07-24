@@ -29,10 +29,17 @@ archivetar --prefix myarchive --size 20G --tar-size 10G
 
 Before submitting an archive job that will use Globus, authenticate from an
 interactive cluster shell. This creates the refresh token used by later batch
-jobs without accessing a Globus collection:
+jobs. If `AT_DESTINATION` is set, it also authorizes that destination
+collection without requiring a source or destination path:
 
 ```
 archivetar auth
+```
+
+To authorize another destination, pass it explicitly:
+
+```
+archivetar auth --destination <guest collection UUID>
 ```
 
 Tokens are stored in `~/.globus/tokens.json`. To replace an expired or

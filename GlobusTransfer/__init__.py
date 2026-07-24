@@ -57,13 +57,27 @@ class GlobusTransfer:
 
         self._initialize_authentication(force_authentication)
 
+        self._validate_endpoints(
+            ((self.ep_source, os.getcwd()), (self.ep_dest, self.path_dest))
+        )
+
+    @classmethod
+    def authenticate(cls, force_authentication=False, destination=None):
+        """Authenticate and optionally authorize a destination collection."""
+        auth = cls.__new__(cls)
+        auth._initialize_authentication(force_authentication)
+        if destination:
+            auth._validate_endpoints(((destination, "~"),))
+        return auth
+
+    def _validate_endpoints(self, endpoints):
+        """Ensure the transfer token is authorized for each endpoint and path."""
         # keep checking until no exceptions
         clean = False
         while clean is False:
             try:
-                # check our concent situation for GCS5 systems
-                self.check_for_concent_required(self.ep_source, os.getcwd())
-                self.check_for_concent_required(self.ep_dest, self.path_dest)
+                for endpoint, path in endpoints:
+                    self.check_for_concent_required(endpoint, path)
             except ScopeOrSingleDomainError as e:
                 print(e)
                 if self.required_scopes:
@@ -89,13 +103,6 @@ class GlobusTransfer:
                     )
             else:
                 clean = True
-
-    @classmethod
-    def authenticate(cls, force_authentication=False):
-        """Authenticate without checking or transferring to a collection."""
-        auth = cls.__new__(cls)
-        auth._initialize_authentication(force_authentication)
-        return auth
 
     def _initialize_authentication(self, force_authentication=False):
         """Create an authorizer, loading or replacing the saved transfer token."""

@@ -11,27 +11,42 @@ from GlobusTransfer import GlobusTransfer
 import GlobusTransfer as globus_transfer_module
 
 
-def test_auth_does_not_access_a_collection(monkeypatch, capsys):
-    """The auth command creates an authorizer without collection defaults."""
+def test_auth_uses_no_destination_when_none_is_configured(monkeypatch, capsys):
+    """The auth command has no hard-coded destination collection."""
     transfer = MagicMock()
     transfer.token_file = Path("/tmp/globus/tokens.json")
     authenticate = MagicMock(return_value=transfer)
     monkeypatch.setattr(archivetar.auth.GlobusTransfer, "authenticate", authenticate)
+    monkeypatch.delenv("AT_DESTINATION", raising=False)
 
     archivetar.auth.main([])
 
-    authenticate.assert_called_once_with(force_authentication=False)
+    authenticate.assert_called_once_with(force_authentication=False, destination=None)
     assert "tokens.json" in capsys.readouterr().out
+
+
+def test_auth_uses_configured_destination(monkeypatch):
+    """AT_DESTINATION is the default destination to authorize."""
+    authenticate = MagicMock()
+    monkeypatch.setattr(archivetar.auth.GlobusTransfer, "authenticate", authenticate)
+    monkeypatch.setenv("AT_DESTINATION", "guest-collection")
+
+    archivetar.auth.main([])
+
+    authenticate.assert_called_once_with(
+        force_authentication=False, destination="guest-collection"
+    )
 
 
 def test_auth_force_replaces_the_saved_token(monkeypatch):
     """--force asks GlobusTransfer to begin a new native-app login."""
     authenticate = MagicMock()
     monkeypatch.setattr(archivetar.auth.GlobusTransfer, "authenticate", authenticate)
+    monkeypatch.delenv("AT_DESTINATION", raising=False)
 
     archivetar.auth.main(["--force"])
 
-    authenticate.assert_called_once_with(force_authentication=True)
+    authenticate.assert_called_once_with(force_authentication=True, destination=None)
 
 
 def test_authenticate_initializes_without_a_collection(tmp_path, monkeypatch):
@@ -53,6 +68,20 @@ def test_authenticate_initializes_without_a_collection(tmp_path, monkeypatch):
     login.assert_called_once_with()
     assert auth.tc is transfer_client
     assert auth.token_file == tmp_path / ".globus" / "tokens.json"
+    assert not hasattr(auth, "ep_source")
+
+
+def test_authenticate_validates_only_the_destination(monkeypatch):
+    """Destination authorization does not require a source collection or path."""
+    initialize = MagicMock()
+    validate = MagicMock()
+    monkeypatch.setattr(GlobusTransfer, "_initialize_authentication", initialize)
+    monkeypatch.setattr(GlobusTransfer, "_validate_endpoints", validate)
+
+    auth = GlobusTransfer.authenticate(destination="guest-collection")
+
+    initialize.assert_called_once_with(False)
+    validate.assert_called_once_with((("guest-collection", "~"),))
     assert not hasattr(auth, "ep_source")
 
 
