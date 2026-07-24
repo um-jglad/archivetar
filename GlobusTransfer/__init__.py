@@ -41,7 +41,6 @@ class GlobusTransfer:
         Other options see: https://globus-sdk-python.readthedocs.io/en/stable/services/transfer.html#globus_sdk.TransferData
         """
 
-        self._CLIENT_ID = "8359fb34-39cf-410d-bd93-e8502aa68c46"
         self.ep_source = ep_source
         self.ep_dest = ep_dest
         self.path_dest = path_dest
@@ -53,55 +52,10 @@ class GlobusTransfer:
         self.fail_on_quota_errors = fail_on_quota_errors
         self.skip_source_errors = skip_source_errors
         self.preserve_timestamp = preserve_timestamp
-        self.session_required_single_domain = None  # used with HA collections
         self.TransferData = None  # start empty created as needed
         self.transfers = []
 
-        """Create an authorizer to use with Globus Service Clients."""
-        """
-        Get globus tokens data.
-
-        Check if  ~/.globus exists else create
-        If it exists check permissions are user only
-        If overly permissive bail
-        Try to load tokens
-        Else start authorization
-        """
-
-        self.client = globus_sdk.NativeAppAuthClient(self._CLIENT_ID)
-        self.required_scopes = []  # list of scopes for GCS5 collections
-
-        save_path = Path.home() / ".globus"
-        self.token_file = save_path / "tokens.json"
-
-        if save_path.is_dir():  # exists and directory
-            st = os.stat(save_path)
-            logging.debug(f"{str(save_path)} exists permissions {st.st_mode}")
-            if bool(st.st_mode & stat.S_IRWXO):
-                raise Exception("~/.globus is world readable and to permissive set 700")
-            if bool(st.st_mode & stat.S_IRWXG):
-                raise Exception("~/.globus is group readable and to permissive set 700")
-        else:  # create ~/.globus
-            logging.debug(f"Creating {str(save_path)}")
-            save_path.mkdir(mode=0o700)
-
-        if force_authentication:
-            self.tc = self.do_native_app_authentication()
-        else:
-            try:  # try and read tokens from file else create and save
-                with self.token_file.open() as f:
-                    tokens = json.load(f)
-
-                authorizer = globus_sdk.RefreshTokenAuthorizer(
-                    tokens["refresh_token"],
-                    self.client,
-                    access_token=tokens["access_token"],
-                    expires_at=tokens["expires_at_seconds"],
-                    on_refresh=self._save_tokens,
-                )
-                self.tc = globus_sdk.TransferClient(authorizer=authorizer)
-            except FileNotFoundError:
-                self.tc = self.do_native_app_authentication()
+        self._initialize_authentication(force_authentication)
 
         # keep checking until no exceptions
         clean = False
@@ -135,6 +89,53 @@ class GlobusTransfer:
                     )
             else:
                 clean = True
+
+    @classmethod
+    def authenticate(cls, force_authentication=False):
+        """Authenticate without checking or transferring to a collection."""
+        auth = cls.__new__(cls)
+        auth._initialize_authentication(force_authentication)
+        return auth
+
+    def _initialize_authentication(self, force_authentication=False):
+        """Create an authorizer, loading or replacing the saved transfer token."""
+        self._CLIENT_ID = "8359fb34-39cf-410d-bd93-e8502aa68c46"
+        self.client = globus_sdk.NativeAppAuthClient(self._CLIENT_ID)
+        self.required_scopes = []  # list of scopes for GCS5 collections
+        self.session_required_single_domain = None
+
+        save_path = Path.home() / ".globus"
+        self.token_file = save_path / "tokens.json"
+
+        if save_path.is_dir():  # exists and directory
+            st = os.stat(save_path)
+            logging.debug(f"{str(save_path)} exists permissions {st.st_mode}")
+            if bool(st.st_mode & stat.S_IRWXO):
+                raise Exception("~/.globus is world readable and to permissive set 700")
+            if bool(st.st_mode & stat.S_IRWXG):
+                raise Exception("~/.globus is group readable and to permissive set 700")
+        else:  # create ~/.globus
+            logging.debug(f"Creating {str(save_path)}")
+            save_path.mkdir(mode=0o700)
+
+        if force_authentication:
+            self.tc = self.do_native_app_authentication()
+            return
+
+        try:  # try and read tokens from file else create and save
+            with self.token_file.open() as f:
+                tokens = json.load(f)
+
+            authorizer = globus_sdk.RefreshTokenAuthorizer(
+                tokens["refresh_token"],
+                self.client,
+                access_token=tokens["access_token"],
+                expires_at=tokens["expires_at_seconds"],
+                on_refresh=self._save_tokens,
+            )
+            self.tc = globus_sdk.TransferClient(authorizer=authorizer)
+        except FileNotFoundError:
+            self.tc = self.do_native_app_authentication()
 
     def _save_tokens(self, tokens):
         """Save Globus auth tokens as required.
