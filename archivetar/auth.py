@@ -35,13 +35,23 @@ def parse_args(argv):
         default="~",
         help="Path used to validate the destination collection. Defaults to ~.",
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Start a new Globus login and replace the saved transfer token.",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv):
     """Authenticate and validate the collections without creating a transfer."""
     args = parse_args(argv)
-    globus = GlobusTransfer(args.source, args.destination, args.destination_dir)
+    globus = GlobusTransfer(
+        args.source,
+        args.destination,
+        args.destination_dir,
+        force_authentication=args.force,
+    )
     print(
         "Globus authentication is ready for "
         f"{args.source} to {args.destination}. Tokens are stored in {globus.token_file}."

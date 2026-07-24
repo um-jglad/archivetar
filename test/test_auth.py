@@ -28,9 +28,22 @@ def test_auth_uses_selected_collections(monkeypatch, capsys):
     )
 
     globus_transfer.assert_called_once_with(
-        "source-collection", "guest-collection", "/guest/archive"
+        "source-collection",
+        "guest-collection",
+        "/guest/archive",
+        force_authentication=False,
     )
     assert "tokens.json" in capsys.readouterr().out
+
+
+def test_auth_force_replaces_the_saved_token(monkeypatch):
+    """--force asks GlobusTransfer to begin a new native-app login."""
+    globus_transfer = MagicMock()
+    monkeypatch.setattr(archivetar.auth, "GlobusTransfer", globus_transfer)
+
+    archivetar.auth.main(["--force"])
+
+    assert globus_transfer.call_args.kwargs["force_authentication"] is True
 
 
 def test_main_dispatches_auth_without_archive_arguments(monkeypatch):

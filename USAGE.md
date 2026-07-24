@@ -38,7 +38,8 @@ archivetar auth --destination <guest collection UUID>
 
 Use `--source`, `--destination-dir`, or `--destination-path` to validate the
 same source and destination path that the archive job will use. Tokens are
-stored in `~/.globus/tokens.json`.
+stored in `~/.globus/tokens.json`. To replace an expired or otherwise invalid
+token, run `archivetar auth --force`.
 
 ```
 archivetar --prefix project1 --source <globus UUID> 

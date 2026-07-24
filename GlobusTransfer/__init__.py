@@ -29,11 +29,14 @@ class GlobusTransfer:
         fail_on_quota_errors=False,
         skip_source_errors=False,
         preserve_timestamp=False,
+        force_authentication=False,
     ):
         """
         ep_source  Globus Collection/Endpoint Source Name
         ep_dest    Globus Collection/Endpoint Destination Name
         path_dest   Path on destination endpoint
+        force_authentication  Start a new native-app login instead of using a
+                              saved token
 
         Other options see: https://globus-sdk-python.readthedocs.io/en/stable/services/transfer.html#globus_sdk.TransferData
         """
@@ -82,20 +85,23 @@ class GlobusTransfer:
             logging.debug(f"Creating {str(save_path)}")
             save_path.mkdir(mode=0o700)
 
-        try:  # try and read tokens from file else create and save
-            with self.token_file.open() as f:
-                tokens = json.load(f)
-
-            authorizer = globus_sdk.RefreshTokenAuthorizer(
-                tokens["refresh_token"],
-                self.client,
-                access_token=tokens["access_token"],
-                expires_at=tokens["expires_at_seconds"],
-                on_refresh=self._save_tokens,
-            )
-            self.tc = globus_sdk.TransferClient(authorizer=authorizer)
-        except FileNotFoundError:
+        if force_authentication:
             self.tc = self.do_native_app_authentication()
+        else:
+            try:  # try and read tokens from file else create and save
+                with self.token_file.open() as f:
+                    tokens = json.load(f)
+
+                authorizer = globus_sdk.RefreshTokenAuthorizer(
+                    tokens["refresh_token"],
+                    self.client,
+                    access_token=tokens["access_token"],
+                    expires_at=tokens["expires_at_seconds"],
+                    on_refresh=self._save_tokens,
+                )
+                self.tc = globus_sdk.TransferClient(authorizer=authorizer)
+            except FileNotFoundError:
+                self.tc = self.do_native_app_authentication()
 
         # keep checking until no exceptions
         clean = False
